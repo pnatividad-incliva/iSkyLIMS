@@ -61,7 +61,7 @@ class RunProcess(models.Model):
     bcl2fastq_finish_date = models.DateTimeField(auto_now = False, null=True, blank=True)
     run_completed_date = models.DateTimeField(auto_now = False, null=True, blank=True)
     #runState = models.CharField(max_length=25)
-
+    run_forced_continue_on_error = models.BooleanField(null = True, blank = True, default = False)
     index_library = models.CharField(max_length=85, null = True, blank = True)
     samples= models.CharField(max_length=45,blank=True)
     useSpaceImgMb=models.CharField(max_length=10, blank=True)
@@ -97,7 +97,7 @@ class RunProcess(models.Model):
         if self.run_date is None :
             rundate = 'Run NOT started'
         else :
-            rundate=self.run_date.strftime("%B %d, %Y")
+            rundate = self.run_date.strftime("%B %d, %Y")
         return rundate
 
     def get_run_year(self):
@@ -106,8 +106,14 @@ class RunProcess(models.Model):
     def get_run_generated_date_no_format(self):
         return self.generatedat
 
+    def get_run_generated_date(self):
+        return self.generatedat.strftime("%B %d, %Y")
+
     def get_error_text (self):
         return '%s' %(self.runError)
+
+    def get_forced_continue_on_error(self):
+        return self.run_forced_continue_on_error
 
     def get_state(self):
         return '%s' %(self.state.get_run_state_name())
@@ -150,6 +156,8 @@ class RunProcess(models.Model):
 
 
     def get_run_name (self):
+        if self.runName is None:
+            return 'Not defined'
         return '%s' %(self.runName)
 
     def get_disk_space_utilization (self):
@@ -255,6 +263,11 @@ class RunProcess(models.Model):
 
     def set_used_sequencer (self, sequencer):
         self.usedSequencer = sequencer
+        self.save()
+        return True
+
+    def set_forced_continue_on_error(self):
+        self.run_forced_continue_on_error = True
         self.save()
         return True
 
@@ -1154,7 +1167,12 @@ class LibraryPool (models.Model):
             return 'Not defined yet'
 
     def get_run_id(self):
-        return '%s' %(self.runProcess_id.get_run_id())
+        if self.runProcess_id != None :
+            return '%s' %(self.runProcess_id.get_run_id())
+        return None
+
+    def get_run_obj(self):
+        return self.runProcess_id
 
 
     def set_pool_state(self, state):
@@ -1199,12 +1217,12 @@ class libraryPreparationManager(models.Manager):
             uniqueID = lib_prep_data['uniqueID'], prefixProtocol = lib_prep_data['prefixProtocol'],
             sampleNameInSampleSheet = lib_prep_data['sampleNameInSampleSheet'])
         return new_lib_prep
-
+    '''
     def create_reused_lib_preparation (self, reg_user, molecule_obj, sample_id):
         lib_state = StatesForLibraryPreparation.objects.get(libPrepState =  'Created for Reuse')
         new_library_preparation = self.create(registerUser = reg_user, molecule_id = molecule_obj, sample_id = sample_id,libPrepState = lib_state)
         return new_library_preparation
-
+    '''
 class LibraryPreparation (models.Model):
     registerUser = models.ForeignKey(
             User,
@@ -1299,7 +1317,7 @@ class LibraryPreparation (models.Model):
     def get_info_for_run_paired_end(self):
         lib_info = []
         lib_info.append(self.uniqueID)
-        lib_info.append(self.sample_id.get_sample_name())
+        lib_info.append(self.sampleNameInSampleSheet)
         lib_info.append(self.samplePlate)
         lib_info.append(self.sampleWell)
         #lib_info.append(self.indexPlateWell)

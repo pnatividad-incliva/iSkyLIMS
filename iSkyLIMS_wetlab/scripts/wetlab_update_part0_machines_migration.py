@@ -1,6 +1,11 @@
 from iSkyLIMS_wetlab.models import RunProcess
 from iSkyLIMS_core.models import SequencerInLab
 
+'''
+The script migration restore the information collected in the prepare_part0_machines_migration .
+Fetching the run_id and the sequencer name.
+The csv file contains "run_id, sequencer_name"
+'''
 
 def get_list_defined_sequencers ():
     if SequencerInLab.objects.all().exists():
@@ -18,7 +23,7 @@ def run ():
         print('Unable to restore machine migration\n', 'Define first the machine on SequencerInLab table\n')
         exit(1)
     invalids = 0
-    with open ('part_0_machines_migration.csv', 'r') as fh:
+    with open ('wetlab_part_0_machines_migration.csv', 'r') as fh:
         for line in fh.readlines():
             line = line.rstrip()
             split_line = line.split(',')

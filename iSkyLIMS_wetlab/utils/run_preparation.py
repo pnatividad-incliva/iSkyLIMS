@@ -183,17 +183,17 @@ def collect_data_and_update_library_preparation_samples_for_run (data_form, user
         record_data['platform'] = 'MiSeq'
         if record_data['single_read'] == 'TRUE':
             if record_data['version'] == '4':
-                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_SINGLE_READ_VERSION_4
+                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_SINGLE_READ_VERSION_4.copy()
                 mapping_fields = MAP_USER_SAMPLE_SHEET_TO_DATABASE_MISEQ_SINGLE_READ_VERSION_4
             else:
-                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_SINGLE_READ_VERSION_5
+                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_SINGLE_READ_VERSION_5.copy()
                 mapping_fields = MAP_USER_SAMPLE_SHEET_TO_DATABASE_MISEQ_SINGLE_READ_VERSION_5
         else:
             if record_data['version'] == '4':
-                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_PAIRED_END_VERSION_4
+                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_PAIRED_END_VERSION_4.copy()
                 mapping_fields = MAP_USER_SAMPLE_SHEET_TO_DATABASE_MISEQ_PAiRED_END_VERSION_4
             else:
-                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_PAIRED_END_VERSION_5
+                heading = HEADING_FOR_COLLECT_INFO_FOR_SAMPLE_SHEET_MISEQ_PAIRED_END_VERSION_5.copy()
                 mapping_fields = MAP_USER_SAMPLE_SHEET_TO_DATABASE_MISEQ_PAiRED_END_VERSION_5
     else:
         record_data['platform'] = 'NextSeq'
@@ -221,13 +221,17 @@ def collect_data_and_update_library_preparation_samples_for_run (data_form, user
         sample_sheet_data_field.append(json_data[row_index])
     if record_data['platform'] == 'NextSeq':
         record_data['index_well'] = False
-        index = heading.index('Index_Plate_Well')
-        for data_line in sample_sheet_data_field :
-            if data_line[index] != '':
-                record_data['index_well'] = True
-                break
-        if not record_data['index_well']:
-            # remove the index well column and heading
+        requires_remove_index_plate_well = False
+        if 'Index_Plate_Well' in heading:
+            index = heading.index('Index_Plate_Well')
+            record_data['index_well'] = True
+            requires_remove_index_plate_well = True
+            for data_line in sample_sheet_data_field :
+                if data_line[index] != '':
+                    requires_remove_index_plate_well = False
+                    record_data['index_well'] = True
+                    break
+        if requires_remove_index_plate_well:
             heading.remove('Index_Plate_Well')
             for data_line in sample_sheet_data_field :
                 del data_line[index]
@@ -470,7 +474,6 @@ def store_confirmation_sample_sheet(fields):
     d = {'investigator':fields['investigator'],'exp_name': fields['exp_name'] , 'date': today_date, 'application': fields['application'],
         'instrument':fields['instrument'], 'assay':fields['assay'] , 'collection_index': fields['collection_index'], 'reads': fields['reads'],
         'adapter':fields['adapter']}
-    # import pdb; pdb.set_trace()
     '''
     if fields['single_read']:
         if fields['platform'] == 'MiSeq':
@@ -924,6 +927,44 @@ def get_run_obj_from_id(run_id):
     '''
     run_obj = RunProcess.objects.get(pk__exact = run_id)
     return run_obj
+
+
+def get_run_user_lot_kit_used_in_sample(sample_id):
+    '''
+    Description:
+        The function return the runprocess object for the run_id
+    Input:
+        sample_id   # sample id
+    Constamt:
+        HEADING_FOR_DISPLAY_ADDITIONAL_KIT_LIBRARY_PREPARATION
+    Return:
+        kit_data
+    '''
+    kit_data = {}
+    kit_data['run_kits_from_sample'] = {}
+    if LibraryPreparation.objects.filter(sample_id__pk__exact = sample_id).exists():
+        kit_data['heading_run_kits'] = HEADING_FOR_DISPLAY_KIT_IN_RUN_PREPARATION
+        library_preparation_items = LibraryPreparation.objects.filter(sample_id__pk__exact = sample_id).order_by('protocol_id')
+        for lib_prep in library_preparation_items:
+            pool_objs = lib_prep.pools.all()
+
+            for pool_obj in pool_objs:
+                run_obj = pool_obj.get_run_obj()
+                if run_obj != None:
+                    run_name = run_obj.get_run_name()
+                    kit_data['run_kits_from_sample'][run_name] = []
+                    run_kit_objs = run_obj.reagent_kit.all()
+                    for run_kit_obj in run_kit_objs:
+
+                        data = [lib_prep.get_lib_prep_code()]
+                        data.append(run_kit_obj.get_lot_number())
+                        data.append(run_kit_obj.get_commercial_kit())
+                        data.append(run_kit_obj.get_expiration_date())
+                        data.append(run_obj.get_run_generated_date())
+
+                        kit_data['run_kits_from_sample'][run_name].append(data)
+
+    return  kit_data
 
 def display_available_pools():
     '''

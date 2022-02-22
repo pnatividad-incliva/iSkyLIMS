@@ -8,13 +8,13 @@ def run ():
     '''
     The script migration is needed to copy the sequencer information from the table in
     drylab to core.
-
+    The csv file contains "run_id, sequencer_name"
     '''
 
     run_objs = RunProcess.objects.all()
     number_runs = str(len(run_objs))
     print('Starting migration ', number_runs , ' runs were found' )
-    with open ('part_0_machines_migration.csv', 'w') as fh:
+    with open ('wetlab_part_0_machines_migration.csv', 'w') as fh:
         for run_obj in run_objs :
             if run_obj.sequencerModel != None:
                 fh.write(str(str(run_obj.pk) + ',' + run_obj.sequencerModel.machineName + '\n' ))

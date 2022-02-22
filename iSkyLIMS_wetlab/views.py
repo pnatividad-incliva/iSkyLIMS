@@ -345,7 +345,7 @@ def create_nextseq_run (request):
             else:
                 library[project_index_kit[x]]= [projects[x]]
         ## convert the sample sheet to base space format and have different files according the library kit
-
+        ''' Removed because Base space creation file is not longer used
         for key, value in library.items():
             lib_kit_file =key.replace(' ', '_')
             library_file = sample_sheet_map_basespace(in_file, key, lib_kit_file, value,'Plate96')
@@ -369,7 +369,7 @@ def create_nextseq_run (request):
             else:
                 bs_file[key] = library_file
                 results.append([key, bs_file[key]])
-
+        '''
         ## save the project information on database
 
         for p in range(len( projects)):
@@ -379,7 +379,9 @@ def create_nextseq_run (request):
             library_kit_id = LibraryKit.objects.filter(libraryName__exact = library_kit[p]).last()
             update_info_proj=Projects.objects.get(projectName = my_project)
             update_info_proj.libraryKit=project_index_kit[p]
-            update_info_proj.baseSpaceFile=bs_file[project_index_kit[p]]
+            # removed the link to base space file
+            #update_info_proj.baseSpaceFile=bs_file[project_index_kit[p]]
+            update_info_proj.baseSpaceFile= None
             update_info_proj.LibraryKit_id = library_kit_id
             update_info_proj.user_id = User.objects.get(username__exact = user_name[p])
             update_info_proj.save()
@@ -679,8 +681,7 @@ def search_run (request):
             if (RunProcess.objects.filter(runName__iexact =run_name).exists()):
                 run_name_found=RunProcess.objects.filter(runName__iexact =run_name)
                 if len(run_name_found) == 1:
-                    r_data_display= get_information_run(run_name_found[0])
-                    return render(request, 'iSkyLIMS_wetlab/SearchRun.html', {'display_one_run': r_data_display })
+                    return redirect ('display_run', run_id=run_name_found[0].pk)
             if (runs_found.filter(runName__icontains =run_name).exists()):
                 runs_found=runs_found.filter(runName__icontains =run_name).order_by('runName')
             else:
@@ -852,6 +853,36 @@ def retry_error_run (request):
         #return redirect (request,'/')
         return render(request, 'iSkyLIMS_wetlab/index.html')
 
+
+
+@login_required
+def skip_cancel_situation (request):
+    # check user privileges
+    if request.user.is_authenticated:
+
+        try:
+            groups = Group.objects.get(name='WetlabManager')
+            if groups not in request.user.groups.all():
+                return render (request,'iSkyLIMS_wetlab/error_page.html', {'content':['You do have the enough privileges to see this page ','Contact with your administrator .']})
+        except:
+            return render (request,'iSkyLIMS_wetlab/error_page.html', {'content':['You do have the enough privileges to see this page ','Contact with your administrator .']})
+    else:
+        #redirect to login webpage
+        return redirect ('/accounts/login')
+    if request.method=='POST' and (request.POST['action']=='skip_cancel_situation'):
+        run_id = request.POST['run_id']
+        if (RunProcess.objects.filter(pk__exact=run_id).exists()):
+            run_name_found = RunProcess.objects.get(pk__exact=run_id)
+            run_name_found.set_run_state('Sample Sent')
+            run_name_found.set_forced_continue_on_error()
+            detail_description = {}
+            detail_description['information'] = SUCCESSFUL_RUN_STATE_CHANGE_FOR_RETRY
+            return render (request,'iSkyLIMS_wetlab/successful_page.html', {'detail_description': detail_description , 'return_main_menu': True})
+        else:
+            return render (request,'iSkyLIMS_wetlab/error_page.html', {'content':['Run does not exist ']})
+    else:
+        #return redirect (request,'/')
+        return render(request, 'iSkyLIMS_wetlab/index.html')
 
 @login_required
 def display_run (request, run_id):
@@ -1311,7 +1342,6 @@ def change_run_libKit (request, run_id):
             library_kit_dict = {}
             form_change_lib_kit['run_name'] = run_obj.get_run_name()
             # get the library Kits used in run
-            import pdb; pdb.set_trace()
             run_obj.get_index_library()
                 pass
             project_list = Projects.objects.filter(runprocess_id = run_id)
@@ -3158,6 +3188,7 @@ def display_sample (request, sample_id):
         sample_information.update(get_molecule_lot_kit_in_sample(sample_id))
         sample_information.update(get_all_library_information(sample_id))
         sample_information.update(get_additional_kits_used_in_sample(sample_id))
+        sample_information.update(get_run_user_lot_kit_used_in_sample(sample_id))
     else:
         sample_information = {}
     sample_obj =get_sample_obj_from_id(sample_id)
@@ -3202,6 +3233,7 @@ def handling_library_preparations(request):
         analyze_and_store_input_additional_kits : located at utils/additional_kits.py
         get_samples_for_library_preparation : located at utils/library_preparation.py
         check_users_exists
+        create_library_preparation_instance : located at utils/library_preparation.py
         extract_user_sample_sheet_data   : located at utils/library_preparation.py
         get_additional_kits_from_lib_prep   : located at utils/additional_kits.py
         get_data_for_library_preparation_in_defined : located at iSkyLIMS_core/utils/handling_samples.py
@@ -3421,7 +3453,7 @@ def handling_molecules(request):
 def repeat_library_preparation(request):
     '''
     Functions:
-    analyze_reprocess_data  : located at utils/sample_functions.py
+        analyze_reprocess_data  # located at utils/sample_functions.py
     '''
 
     if  request.method == 'POST' and request.POST['action'] == 'repeat_library_preparation':
@@ -3541,7 +3573,7 @@ def search_sample (request):
                 sample_list = [sample_obj.get_info_for_searching()]
             if len(run_sample_list) == 1:
                 run_sample_obj = get_sample_in_project_obj_from_id(run_sample_list[0])
-                run_sample_list = [run_sample_obj.get_info_for_searching()]
+                run_sample_list = [run_sample_obj.get_basic_info()]
             return render(request, 'iSkyLIMS_wetlab/searchSample.html',{'sample_list':sample_list , 'run_sample_list':run_sample_list})
 
     else:
