@@ -114,7 +114,7 @@ def check_sequencer_status_from_log_file(log_file_content, log_cycles, number_of
             logger.warning ('%s : Forced to continue on execution that was canceled', experiment_name)
         else:
             logger.warning ('%s : Sequencer execution was canceled', experiment_name)
-            status = 'Cancelled'
+            status = 'cancelled'
             logger.debug ('%s : End function check_sequencer_status_from_log_file', experiment_name)
             return status, run_completion_date
     elif log_cycles != number_of_cycles :
@@ -151,8 +151,8 @@ def check_sequencer_status_from_completion_file(l_run_completion, experiment_nam
     logger.debug ('%s : Starting function for check_sequencer_status_from_completion_file', experiment_name)
     # check if NextSEq run have been successful completed
     status_run = find_xml_tag_text (l_run_completion, COMPLETION_TAG )
-    if  status_run != COMPLETION_SUCCESS:
-        logger.info('%s : Run in sequencer was not completed but %s', experiment_name, stats_run)
+    if  status_run not in COMPLETION_SUCCESS:
+        logger.info('%s : Run in sequencer was not completed but %s', experiment_name, status_run)
         string_message = experiment_name + ' : Sequencer Run was not completed. Reason was ' + status_run
         logging_warnings (string_message, False)
         logger.debug ('%s : End function for check_sequencer_status_from_completion_file', experiment_name)

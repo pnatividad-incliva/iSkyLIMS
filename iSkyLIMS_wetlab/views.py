@@ -46,8 +46,8 @@ from iSkyLIMS_core.utils.handling_load_batch_samples import *
 
 
 def index(request):
-    #
-    return render(request, 'iSkyLIMS_wetlab/index.html')
+    org_name = get_configuration_from_database("ORGANIZATION_NAME")
+    return render(request, 'iSkyLIMS_wetlab/index.html', {"organization_name": org_name})
 
 @login_required
 def register_wetlab(request):
@@ -92,32 +92,37 @@ def configuration_samba(request):
     else:
         return render(request, 'iSkyLIMS_wetlab/configurationSamba.html',{'samba_conf_data': samba_conf_data})
 
+
 @login_required
 def initial_settings(request):
     if not request.user.is_authenticated:
-        #redirect to login webpage
-        return redirect ('/accounts/login')
+        # redirect to login webpage
+        return redirect('/accounts/login')
 
     if not is_wetlab_manager(request):
-        return render (request,'iSkyLIMS_wetlab/error_page.html', {'content': ERROR_USER_NOT_WETLAB_MANAGER})
+        return render(request, 'iSkyLIMS_wetlab/error_page.html', {'content': ERROR_USER_NOT_WETLAB_MANAGER})
     initial_data = get_inital_sample_settings_values(__package__)
     form_data = {}
-    if request.method == 'POST' and request.POST['action']=='defineNewSpecie':
+    if request.method == 'POST' and request.POST['action'] == 'defineNewSpecie':
         form_data['species'] = request.POST['specieName']
-    if request.method == 'POST' and request.POST['action']=='defineNewLabRequest':
+    if request.method == 'POST' and request.POST['action'] == 'defineNewState':
+        form_data['state'] = request.POST['stateName']
+    if request.method == 'POST' and request.POST['action'] == 'defineNewCity':
+        form_data['city'] = request.POST
+    if request.method == 'POST' and request.POST['action'] == 'defineNewLabRequest':
         form_data['lab_request'] = request.POST
-    if request.method == 'POST' and request.POST['action']=='defineMoleculeType':
+    if request.method == 'POST' and request.POST['action'] == 'defineMoleculeType':
         form_data['molecule_type'] = request.POST['moleculeName']
-    if request.method == 'POST' and request.POST['action']=='defineProtocolType':
+    if request.method == 'POST' and request.POST['action'] == 'defineProtocolType':
         form_data['protocol_type'] = [request.POST['protocolName'], request.POST['moleculeType']]
 
     if form_data:
         new_inital_data = save_inital_sample_setting_value(__package__, form_data)
         if 'ERROR' in new_inital_data:
-            return render(request,'iSkyLIMS_wetlab/initialSettings.html',{'initial_data': initial_data, 'ERROR': new_inital_data['ERROR']})
+            return render(request, 'iSkyLIMS_wetlab/initialSettings.html', {'initial_data': initial_data, 'ERROR': new_inital_data['ERROR']})
         return render(request,'iSkyLIMS_wetlab/initialSettings.html',{'initial_data': initial_data, 'new_setting_defined': new_inital_data})
     else:
-        return render(request,'iSkyLIMS_wetlab/initialSettings.html',{'initial_data': initial_data})
+        return render(request, 'iSkyLIMS_wetlab/initialSettings.html', {'initial_data': initial_data})
 
 
 @login_required
@@ -2944,7 +2949,7 @@ def record_samples(request):
         sample_recorded = analyze_input_samples (request, __package__)
         # if no samples are in any of the options, displays the inital page
 
-        if (not 'defined_samples' in sample_recorded and not 'pre_defined_samples' in sample_recorded and not 'invalid_samples' in sample_recorded and not 'incomplete_samples' in sample_recorded) :
+        if ('defined_samples' not in sample_recorded and 'pre_defined_samples' not in sample_recorded and 'invalid_samples' not in sample_recorded and 'incomplete_samples' not in sample_recorded) :
             sample_information = prepare_sample_input_table(__package__)
             return render(request, 'iSkyLIMS_wetlab/recordSample.html',{'sample_information':sample_information})
 
@@ -3175,7 +3180,7 @@ def define_type_of_samples (request):
 
 
 @login_required
-def display_sample (request, sample_id):
+def display_sample(request, sample_id):
     '''
     Functions:
         get_all_sample_information : located at iSkyLIMS_core/utils/handling_samples.py
